@@ -13,7 +13,7 @@ int head[MAXM];              // head[u] = u 的第一条边
 int to[MAXK];                // 边的终点
 int cost[MAXK];              // 边的权值
 int next_edge[MAXK];         // 下一条边
-int edge_cnt = 0;//这几个数组完全不需要
+int edge_cnt = 0;
 
 // 插入反向边：存成 to -> from
 void add_edge(int u, int v, int w) {

@@ -7,7 +7,8 @@
 #define INF 0x3f3f3f3f
 
 typedef struct {
-    int from, to, price;
+    int to;
+    unsigned char price;
 } Edge;//边的结构体存储图
 Edge edges[MAXK];
 int edge_count = 0;
@@ -15,7 +16,9 @@ int head[MAXM];//每个节点的第一条边
 int next[MAXK];//边的后继边
 
 void add_edge(int u, int v, int w) {
-    Edge e = {u, v, w};
+    Edge e;
+    e.to = v;
+    e.price = w;
     edges[edge_count] = e;
     next[edge_count] = head[u];
     head[u] = edge_count;
@@ -37,7 +40,7 @@ void dijkstra(int start,int M) {
         }
         if (u == -1 || minDist == INF) break;
         visited[u] = 1;
-        for (int i = head[u]; i != -1; i = next[i]) {
+        for (int i = head[u]; i != -1; i = next[i]) {//遍历u的所有邻接边
             int v = edges[i].to;
             int cost = edges[i].price;
             if (dist[u] + cost < dist[v]) {
@@ -64,7 +67,7 @@ int main() {
     }
     dijkstra(1, M);
     int dist_toC[MAXM];
-    for (int i = 1; i <= M; i++) dist_toC[i] = dist[i];
+    memcpy(dist_toC, dist, sizeof(dist));
 
     int best_city = -1;
     long long best_cost = INF;
