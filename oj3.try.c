@@ -24,27 +24,69 @@ void add_edge(int u, int v, int w) {
     head[u] = edge_count;
     edge_count++;
 }
+//最小堆
+typedef struct {
+    int node;
+    int dist;
+} HeapNode;
+HeapNode heap[MAXM * 5];
+int heap_size = 0;
+void up(int i) {
+    while (i > 1) {
+        int p = i >> 1;
+        if (heap[p].dist <= heap[i].dist) break;
+        HeapNode tmp = heap[p];
+        heap[p] = heap[i];
+        heap[i] = tmp;
+        i = p;
+    }
+}//向上堆化
+void down(int i) {
+    while (1) {
+        int l = i << 1, r = l + 1, min_i = i;
+        if (l <= heap_size && heap[l].dist < heap[min_i].dist) min_i = l;
+        if (r <= heap_size && heap[r].dist < heap[min_i].dist) min_i = r;
+        if (min_i == i) break;
+        HeapNode tmp = heap[min_i];
+        heap[min_i] = heap[i];
+        heap[i] = tmp;
+        i = min_i;
+    }
+}//向下堆化
+void push(int node, int dist) {
+    heap_size++;
+    heap[heap_size].node = node;
+    heap[heap_size].dist = dist;
+    up(heap_size);
+}
+HeapNode pop() {
+    HeapNode top = heap[1];
+    heap[1] = heap[heap_size--];
+    down(1);
+    return top;
+}
 // Dijkstra 算法
 int dist[MAXM];
-void dijkstra(int start,int M) {
-    int visited[MAXM];
-    for (int i = 1; i <= M; i++) dist[i] = INF, visited[i] = 0;
+void dijkstra(int start, int M) {
+    static int visited[MAXM];
+    for (int i = 1; i <= M; i++) {
+        dist[i] = INF;
+        visited[i] = 0;
+    }
+    heap_size = 0;
     dist[start] = 0;
-    for (int i = 0; i < M; i++) {
-        int u = -1, minDist = INF;
-        for (int j = 1; j <= M; j++) {
-            if (!visited[j] && dist[j] < minDist) {
-                minDist = dist[j];
-                u = j;
-            }
-        }
-        if (u == -1 || minDist == INF) break;
+    push(start, 0);
+    while (heap_size > 0) {
+        HeapNode h = pop();
+        int u = h.node;
+        if (visited[u]) continue;
         visited[u] = 1;
-        for (int i = head[u]; i != -1; i = next[i]) {//遍历u的所有邻接边
+        for (int i = head[u]; i != -1; i = next[i]) {
             int v = edges[i].to;
-            int cost = edges[i].price;
-            if (dist[u] + cost < dist[v]) {
-                dist[v] = dist[u] + cost;
+            int w = edges[i].price;
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                push(v, dist[v]);
             }
         }
     }

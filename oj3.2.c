@@ -1,116 +1,161 @@
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
 
-#define MAXM 4005
-#define MAXN 100005
-#define INF 1000000000
+#define MAXN 100010
+#define MAXM 4010
+#define MAXK 240010
+#define INF 0x3f3f3f3f
 
 typedef struct {
-    int to, cost;
-    int next;
+    int to;
+    unsigned char price;
 } Edge;
 
-Edge edges[500005];
+Edge edges[MAXK];
 int head[MAXM];
-int edgeCount = 0;
+int next[MAXK];
+int edge_count = 0;
 
-int N, M, K;
-int scholars[MAXN];
-
-void addEdge(int from, int to, int cost) {
-    edges[edgeCount].to = to;
-    edges[edgeCount].cost = cost;
-    edges[edgeCount].next = head[from];
-    head[from] = edgeCount;
-    edgeCount++;
+void add_edge(int u, int v, int w) {
+    edges[edge_count].to = v;
+    edges[edge_count].price = w;
+    next[edge_count] = head[u];
+    head[u] = edge_count;
+    edge_count++;
 }
 
-void dijkstra(int src, int dist[]) {
-    int visited[MAXM];
-    memset(visited, 0, sizeof(visited));
-    
-    for (int i = 1; i <= M; i++) dist[i] = INF;
-    dist[src] = 0;
-    
-    for (int iter = 0; iter < M; iter++) {
-        int u = -1, minDist = INF;
-        for (int i = 1; i <= M; i++) {
-            if (!visited[i] && dist[i] < minDist) {
-                minDist = dist[i];
-                u = i;
-            }
-        }
-        if (u == -1 || minDist == INF) break;
+/*=============================
+       小根堆（核心优化）
+==============================*/
+
+typedef struct {
+    int node;
+    int dist;
+} HeapNode;
+
+HeapNode heap[MAXM * 5];
+int heap_size;
+
+void up(int i) {
+    while (i > 1) {
+        int p = i >> 1;
+        if (heap[p].dist <= heap[i].dist) break;
+        HeapNode tmp = heap[p];
+        heap[p] = heap[i];
+        heap[i] = tmp;
+        i = p;
+    }
+}
+
+void down(int i) {
+    while (1) {
+        int l = i << 1, r = l + 1, min_i = i;
+        if (l <= heap_size && heap[l].dist < heap[min_i].dist) min_i = l;
+        if (r <= heap_size && heap[r].dist < heap[min_i].dist) min_i = r;
+        if (min_i == i) break;
+        HeapNode tmp = heap[min_i];
+        heap[min_i] = heap[i];
+        heap[i] = tmp;
+        i = min_i;
+    }
+}
+
+void push(int node, int dist) {
+    heap[++heap_size].node = node;
+    heap[heap_size].dist = dist;
+    up(heap_size);
+}
+
+HeapNode pop() {
+    HeapNode top = heap[1];
+    heap[1] = heap[heap_size--];
+    down(1);
+    return top;
+}
+
+/*=============================
+         Dijkstra
+==============================*/
+
+int dist[MAXM];
+void dijkstra(int start, int M) {
+    static int visited[MAXM];
+    for (int i = 1; i <= M; i++) {
+        dist[i] = INF;
+        visited[i] = 0;
+    }
+
+    heap_size = 0;
+    dist[start] = 0;
+    push(start, 0);
+
+    while (heap_size > 0) {
+        HeapNode h = pop();
+        int u = h.node;
+
+        if (visited[u]) continue;
         visited[u] = 1;
-        
-        for (int e = head[u]; e != -1; e = edges[e].next) {
-            int v = edges[e].to;
-            int cost = edges[e].cost;
-            if (dist[u] + cost < dist[v]) {
-                dist[v] = dist[u] + cost;
+
+        for (int i = head[u]; i != -1; i = next[i]) {
+            int v = edges[i].to;
+            int w = edges[i].price;
+
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                push(v, dist[v]);
             }
         }
     }
 }
 
+/*=============================
+              主程序
+==============================*/
+
 int main() {
+    int N, M, K;
     scanf("%d %d %d", &N, &M, &K);
-    
-    memset(head, -1, sizeof(head));
-    
-    // 建立反向图
+
+    for (int i = 1; i <= M; i++) head[i] = -1;
+
     for (int i = 0; i < K; i++) {
         int from, to, price;
         scanf("%d %d %d", &from, &to, &price);
-        addEdge(to, from, price);  // 反向添加边
+        add_edge(to, from, price);  // 反向图
     }
-    
-    for (int i = 0; i < N; i++) {
-        scanf("%d", &scholars[i]);
+
+    int city[MAXM] = {0};
+    for (int i = 1; i <= N; i++) {
+        int t;
+        scanf("%d", &t);
+        city[t]++;
     }
-    
-    // 计算从城市1到所有城市的距离（在反向图上）
-    int dist_from_c1[MAXM];
-    dijkstra(1, dist_from_c1);
-    
-    long long minCost = LLONG_MAX;
-    int bestCity = 2;
-    
-    // 尝试每个可能的分会场城市
-    for (int city = 2; city <= M; city++) {
-        // 计算从该分会场城市到所有城市的距离（在反向图上）
-        int dist_from_city[MAXM];
-        dijkstra(city, dist_from_city);
-        
-        long long totalCost = 0;
-        int feasible = 1;
-        
-        for (int i = 0; i < N; i++) {
-            int scholar_start = scholars[i];
-            int dist_to_c = dist_from_c1[scholar_start];
-            int dist_to_branch = dist_from_city[scholar_start];
-            
-            if (dist_to_c == INF && dist_to_branch == INF) {
-                feasible = 0;
-                break;
-            }
-            
-            int cost;
-            if (dist_to_c == INF) cost = dist_to_branch;
-            else if (dist_to_branch == INF) cost = dist_to_c;
-            else cost = (dist_to_c < dist_to_branch) ? dist_to_c : dist_to_branch;
-            
-            totalCost += cost;
+
+    dijkstra(1, M);
+    int dist_toC[MAXM];
+    memcpy(dist_toC, dist, sizeof(dist));
+
+    int best_city = -1;
+    long long best_cost = INF;
+
+    for (int i = 2; i <= M; i++) {
+        if (head[i] == -1 && city[i] == 0) continue;
+        dijkstra(i, M);
+
+        long long total_cost = 0;
+        for (int j = 1; j <= M; j++) {
+            if (city[j] == 0) continue;
+            total_cost += (long long)city[j] *
+                          (dist[j] < dist_toC[j] ? dist[j] : dist_toC[j]);
+            if (total_cost >= best_cost) break;
         }
-        
-        if (feasible && totalCost < minCost) {
-            minCost = totalCost;
-            bestCity = city;
+
+        if (total_cost < best_cost) {
+            best_city = i;
+            best_cost = total_cost;
         }
     }
-    
-    printf("%d\n%lld\n", bestCity, minCost);
-    
+
+    printf("%d\n%lld\n", best_city, best_cost);
     return 0;
 }
