@@ -1,25 +1,24 @@
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 #define MAXN 100010
 #define MAXM 4010
 #define MAXK 240010
 #define INF 0x3f3f3f3f
+
+//邻接表+最小堆适合稀疏图
 typedef struct {
     short to;
     unsigned char price;
-} Edge;//边的结构体存储图
+} Edge;
 Edge *edges;
 int edge_count = 0;
 int *head;//每个节点的第一条边
-int *next;//边的后继边
+int *next;//后继边
 void add_edge(int u, int v, int w) {
-    Edge e;
-    e.to = v;
-    e.price = w;
-    edges[edge_count] = e;
+    edges[edge_count].to = v;
+    edges[edge_count].price = w;
     next[edge_count] = head[u];
-    head[u] = edge_count;
-    edge_count++;
+    head[u] = edge_count++;
 }
 //最小堆
 typedef struct {
@@ -28,7 +27,6 @@ typedef struct {
 } HeapNode;
 HeapNode *heap;
 int heap_size = 0;
-int heap_capacity = 0;
 void up(int i) {
     while (i > 1) {
         int p = i >> 1;
@@ -38,7 +36,7 @@ void up(int i) {
         heap[i] = tmp;
         i = p;
     }
-}//向上堆化
+}
 void down(int i) {
     while (1) {
         int l = i << 1, r = l + 1, min_i = i;
@@ -50,10 +48,9 @@ void down(int i) {
         heap[i] = tmp;
         i = min_i;
     }
-}//向下堆化
+}
 void push(int node, int dist) {
-    heap_size++;
-    heap[heap_size].node = node;
+    heap[++heap_size].node = node;
     heap[heap_size].dist = dist;
     up(heap_size);
 }
@@ -63,7 +60,6 @@ HeapNode pop() {
     down(1);
     return top;
 }
-// Dijkstra 算法
 int *dist;
 int *visited;
 void dijkstra(int start, int M) {
@@ -89,44 +85,95 @@ void dijkstra(int start, int M) {
         }
     }
 }
+//邻接矩阵适合稠密图仅限M较小时
+unsigned char **Matrix = NULL;
+int distM[500];
+unsigned char visitedM[500];
+void dijkstraM(int start, int MC) {
+    for (int i = 1; i <= MC; i++) {
+        distM[i] = INF;
+        visitedM[i] = 0;
+    }
+    distM[start] = 0;
+    for (int i = 1; i <= MC; i++) {
+        int u = -1, min = INF;
+        for (int j = 1; j <= MC; j++) {
+            if (!visitedM[j] && distM[j] < min) {
+                min = distM[j];
+                u = j;
+            }
+        }
+        if (u == -1) break;
+        visitedM[u] = 1;
+        for (int v = 1; v <= MC; v++) {
+            if (!visitedM[v] && Matrix[u][v] != 255) {
+                int t = distM[u] + Matrix[u][v];
+                if (t < distM[v]) distM[v] = t;
+            }
+        }
+    }
+}
 
 int main() {
-    int N,M,K;
+    int N, M, K;
     scanf("%d %d %d", &N, &M, &K);
-    // 动态分配
-    edges = (Edge *)malloc((K + 5) * sizeof(Edge));
-    next = (int *)malloc((K + 5) * sizeof(int));
-    head = (int *)malloc((M + 5) * sizeof(int));
-    for (int i = 1; i <= M; i++) head[i] = -1;
-    heap_capacity = M * 5 + 5;
-    heap = (HeapNode *)malloc(heap_capacity * sizeof(HeapNode));
-    dist = (int *)malloc((M + 5) * sizeof(int));
-    visited = (int *)malloc((M + 5) * sizeof(int));
-    int *city = (int *)calloc(M + 5, sizeof(int));
-    for(int i=0;i<K;i++){
-        int from,to,price;
-        scanf("%d %d %d",&from,&to,&price);
-        add_edge(to,from,price);
-    }//存储反向图
+    int key = (M *M/ 5 > K) ? 1 : 0;//判断稀疏图还是稠密图
+    int city[MAXM] = {0};
+    int dist_toC[MAXM];
+    //均使用动态分配，避免两边同时分配内存
+    if (!key) {
+        Matrix = (unsigned char **)malloc(M * sizeof(unsigned char *));
+        for (int i = 1; i <= M; i++) {
+            Matrix[i] = (unsigned char *)malloc(M * sizeof(unsigned char));
+            for (int j = 1; j <= M; j++) Matrix[i][j] = 255;
+        }
+        for (int i = 0; i < K; i++) {
+            int from, to, price;
+            scanf("%d %d %d", &from, &to, &price);
+            Matrix[to][from] = price;
+        }
+    } else {
+        edges = (Edge *)malloc((K + 5) * sizeof(Edge));
+        next = (int *)malloc((K + 5) * sizeof(int));
+        head = (int *)malloc((M + 5) * sizeof(int));
+        for (int i = 1; i <= M; i++) head[i] = -1;
+        heap = (HeapNode *)malloc((M * 5 + 5) * sizeof(HeapNode));
+        dist = (int *)malloc((M + 5) * sizeof(int));
+        visited = (int *)malloc((M + 5) * sizeof(int));
+        for (int i = 0; i < K; i++) {
+            int from, to, price;
+            scanf("%d %d %d", &from, &to, &price);
+            add_edge(to, from, price);
+        }
+    }
     for (int i = 1; i <= N; i++) {
         int t;
         scanf("%d", &t);
         city[t]++;
     }
-    dijkstra(1, M);
-    int *dist_toC = (int *)malloc((M + 5) * sizeof(int));
-    for (int i = 1; i <= M; i++) {
-        dist_toC[i] = dist[i];
+    if (!key) {
+        dijkstraM(1, M);
+        for (int i = 1; i <= M; i++) dist_toC[i] = distM[i];
+    } else {
+        dijkstra(1, M);
+        for (int i = 1; i <= M; i++) dist_toC[i] = dist[i];
     }
     int best_city = -1;
-    long long best_cost = INF;
-    for (int i = 2; i <= M; i++) {//主循环
-        if (head[i]==-1&&city[i]==0) continue;//i城不可及且无参会人员
-        dijkstra(i, M);
-        long long total_cost = 0;
+    unsigned long long best_cost = INF;
+    for (int i = 2; i <= M; i++) {
+        if (!key) {
+            if (distM[i] == INF && city[i] == 0) continue;
+            dijkstraM(i, M);
+        } else {
+            if (dist[i] == INF && city[i] == 0) continue;
+            dijkstra(i, M);
+        }
+        unsigned long long total_cost = 0;
         for (int j = 1; j <= M; j++) {
-            if (city[j] == 0) continue;//无参会人员直接跳
-            total_cost += (long long)city[j] * (dist[j] < dist_toC[j] ? dist[j] : dist_toC[j]);
+            if (city[j] == 0) continue;
+            unsigned int d = (!key ? distM[j] : dist[j]);
+            d = (d < dist_toC[j] ? d : dist_toC[j]);
+            total_cost += (unsigned long long)city[j] * d;
             if (total_cost >= best_cost) break;
         }
         if (total_cost < best_cost) {
@@ -134,9 +181,13 @@ int main() {
             best_cost = total_cost;
         }
     }
-    printf("%d\n%lld\n", best_city, best_cost);
-    free(edges);    free(next);    free(head);
-    free(heap);    free(dist);    free(visited);
-    free(city);    free(dist_toC);
+    printf("%d\n%llu\n", best_city, best_cost);
+    if (!key) {
+        for (int i = 0; i <= M; i++) free(Matrix[i]);
+        free(Matrix);
+    } else {
+        free(edges);    free(next);    free(head);
+        free(heap);    free(dist);    free(visited);
+    }
     return 0;
 }
