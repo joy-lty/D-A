@@ -1,20 +1,17 @@
 #include<stdio.h>
-#include<string.h>
-
+#include<stdlib.h>
 #define MAXN 100010
 #define MAXM 4010
 #define MAXK 240010
 #define INF 0x3f3f3f3f
-
 typedef struct {
-    int to;
+    short to;
     unsigned char price;
 } Edge;//边的结构体存储图
-Edge edges[MAXK];
+Edge *edges;
 int edge_count = 0;
-int head[MAXM];//每个节点的第一条边
-int next[MAXK];//边的后继边
-
+int *head;//每个节点的第一条边
+int *next;//边的后继边
 void add_edge(int u, int v, int w) {
     Edge e;
     e.to = v;
@@ -29,8 +26,9 @@ typedef struct {
     int node;
     int dist;
 } HeapNode;
-HeapNode heap[MAXM * 5];
+HeapNode *heap;
 int heap_size = 0;
+int heap_capacity = 0;
 void up(int i) {
     while (i > 1) {
         int p = i >> 1;
@@ -66,9 +64,9 @@ HeapNode pop() {
     return top;
 }
 // Dijkstra 算法
-int dist[MAXM];
+int *dist;
+int *visited;
 void dijkstra(int start, int M) {
-    static int visited[MAXM];
     for (int i = 1; i <= M; i++) {
         dist[i] = INF;
         visited[i] = 0;
@@ -95,22 +93,31 @@ void dijkstra(int start, int M) {
 int main() {
     int N,M,K;
     scanf("%d %d %d", &N, &M, &K);
+    // 动态分配
+    edges = (Edge *)malloc((K + 5) * sizeof(Edge));
+    next = (int *)malloc((K + 5) * sizeof(int));
+    head = (int *)malloc((M + 5) * sizeof(int));
     for (int i = 1; i <= M; i++) head[i] = -1;
+    heap_capacity = M * 5 + 5;
+    heap = (HeapNode *)malloc(heap_capacity * sizeof(HeapNode));
+    dist = (int *)malloc((M + 5) * sizeof(int));
+    visited = (int *)malloc((M + 5) * sizeof(int));
+    int *city = (int *)calloc(M + 5, sizeof(int));
     for(int i=0;i<K;i++){
         int from,to,price;
         scanf("%d %d %d",&from,&to,&price);
         add_edge(to,from,price);
     }//存储反向图
-    int city[MAXM]={0};
     for (int i = 1; i <= N; i++) {
         int t;
         scanf("%d", &t);
         city[t]++;
     }
     dijkstra(1, M);
-    int dist_toC[MAXM];
-    memcpy(dist_toC, dist, sizeof(dist));
-
+    int *dist_toC = (int *)malloc((M + 5) * sizeof(int));
+    for (int i = 1; i <= M; i++) {
+        dist_toC[i] = dist[i];
+    }
     int best_city = -1;
     long long best_cost = INF;
     for (int i = 2; i <= M; i++) {//主循环
@@ -128,5 +135,8 @@ int main() {
         }
     }
     printf("%d\n%lld\n", best_city, best_cost);
+    free(edges);    free(next);    free(head);
+    free(heap);    free(dist);    free(visited);
+    free(city);    free(dist_toC);
     return 0;
 }
